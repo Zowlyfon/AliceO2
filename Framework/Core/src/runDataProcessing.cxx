@@ -57,6 +57,7 @@
 #include "HTTPParser.h"
 #include "DPLWebSocket.h"
 #include "ArrowSupport.h"
+#include "GuiCallbackContext.h"
 
 #include "ComputingResourceHelpers.h"
 #include "DataProcessingStatus.h"
@@ -1238,7 +1239,7 @@ int runStateMachine(DataProcessorSpecs const& workflow,
   decltype(debugGUI->getGUIDebugger(infos, runningWorkflow.devices, dataProcessorInfos, metricsInfos, driverInfo, controls, driverControl)) debugGUICallback;
 
   // An empty frameworkId means this is the driver, so we initialise the GUI
-  if (driverInfo.batch == false && frameworkId.empty()) {
+  if (frameworkId.empty()) {
     auto initDebugGUI = []() -> DebugGUI* {
       uv_lib_t supportLib;
       int result = 0;
@@ -1263,7 +1264,11 @@ int runStateMachine(DataProcessorSpecs const& workflow,
     };
     debugGUI = initDebugGUI();
     if (debugGUI) {
-      window = debugGUI->initGUI("O2 Framework debug GUI");
+      if (driverInfo.batch == false) {
+        window = debugGUI->initGUI("O2 Framework debug GUI");
+      } else {
+        window = debugGUI->initGUI(nullptr);
+      }
     }
   }
   if (driverInfo.batch == false && window == nullptr && frameworkId.empty()) {
@@ -1281,9 +1286,7 @@ int runStateMachine(DataProcessorSpecs const& workflow,
   uv_loop_t* loop = uv_loop_new();
 
   uv_timer_t gui_timer;
-  if (window) {
-    uv_timer_init(loop, &gui_timer);
-  }
+  uv_timer_init(loop, &gui_timer);
 
   // We initialise this in the driver, because different drivers might have
   // different versions of the service
@@ -1301,8 +1304,6 @@ int runStateMachine(DataProcessorSpecs const& workflow,
 
   serviceRegistry.registerService(ServiceRegistryHelpers::handleForService<DevicesManager>(devicesManager));
 
-  // This is the context used by the callback which does the GUI rendering.
-  // FIXME: move to a service maybe.
   GuiCallbackContext guiContext;
   guiContext.plugin = debugGUI;
   guiContext.frameLast = uv_hrtime();
@@ -1412,6 +1413,7 @@ int runStateMachine(DataProcessorSpecs const& workflow,
     switch (current) {
       case DriverState::INIT:
         LOGP(info, "Initialising O2 Data Processing Layer. Driver PID: {}.", getpid());
+        LOGP(info, "Driver listening on port: {}", driverInfo.port);
 
         // Install signal handler for quitting children.
         driverInfo.sa_handle_child.sa_handler = &handle_sigchld;
@@ -1680,14 +1682,18 @@ int runStateMachine(DataProcessorSpecs const& workflow,
         // has been added to the topology.
         // We need to recreate the GUI callback every time we reschedule
         // because getGUIDebugger actually recreates the GUI state.
-        if (window) {
+        if (!driverInfo.batch) {
           uv_timer_stop(&gui_timer);
-          guiContext.callback = debugGUI->getGUIDebugger(infos, runningWorkflow.devices, dataProcessorInfos, metricsInfos, driverInfo, controls, driverControl);
-          guiContext.window = window;
-          gui_timer.data = &guiContext;
-          uv_timer_start(&gui_timer, gui_callback, 0, 20);
-          guiDeployedOnce = true;
         }
+
+        guiContext.callback = debugGUI->getGUIDebugger(infos, runningWorkflow.devices, dataProcessorInfos, metricsInfos, driverInfo, controls, driverControl);
+        guiContext.window = window;
+        gui_timer.data = &guiContext;
+
+        if (!driverInfo.batch) {
+          uv_timer_start(&gui_timer, gui_callback, 0, 20);
+        }
+        guiDeployedOnce = true;
         break;
       case DriverState::MERGE_CONFIGS: {
         try {
