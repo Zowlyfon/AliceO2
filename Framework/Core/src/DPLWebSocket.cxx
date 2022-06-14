@@ -213,6 +213,7 @@ void populateHeader(std::map<std::string, std::string>& headers, std::string_vie
 void remoteGuiCallback(uv_timer_s* ctx)
 {
   GuiRenderer* renderer = reinterpret_cast<GuiRenderer*>(ctx->data);
+  assert(renderer);
 
   void* frame = nullptr;
   void* draw_data = nullptr;
