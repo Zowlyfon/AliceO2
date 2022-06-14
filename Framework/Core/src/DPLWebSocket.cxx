@@ -213,6 +213,7 @@ void populateHeader(std::map<std::string, std::string>& headers, std::string_vie
 void remoteGuiCallback(uv_timer_s* ctx)
 {
   GuiRenderer* renderer = reinterpret_cast<GuiRenderer*>(ctx->data);
+  assert(renderer);
 
   void* frame = nullptr;
   void* draw_data = nullptr;
@@ -221,9 +222,10 @@ void remoteGuiCallback(uv_timer_s* ctx)
   uint64_t frameLatency = frameStart - renderer->gui->frameLast;
 
   // if less than 15ms have passed reuse old frame
-  if (frameLatency / 1000000 > 15) {
+  if (renderer->gui->lastFrame == nullptr || frameLatency / 1000000 > 15) {
     renderer->gui->plugin->pollGUIPreRender(renderer->gui->window, (float)frameLatency / 1000000000.0f);
     draw_data = renderer->gui->plugin->pollGUIRender(renderer->gui->callback);
+    renderer->gui->plugin->pollGUIPostRender(renderer->gui->window, draw_data);
   } else {
     draw_data = renderer->gui->lastFrame;
   }
