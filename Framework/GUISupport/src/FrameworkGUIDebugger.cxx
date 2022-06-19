@@ -29,6 +29,7 @@
 #include <iostream>
 #include <set>
 #include <string>
+#include <string_view>
 #include <cinttypes>
 #include <numeric>
 
@@ -1019,6 +1020,10 @@ std::function<void(void)> getGUIDebugger(std::vector<DeviceInfo> const& infos,
     displayMetrics(guiState, driverInfo, infos, metadata, controls, metricsStore);
     displayDriverInfo(driverInfo, driverControl);
 
+    for (auto info : infos) {
+      spyGUI(info);
+    }
+
     int windowPosStepping = (ImGui::GetIO().DisplaySize.y - 500) / guiState.devices.size();
 
     for (size_t i = 0; i < guiState.devices.size(); ++i) {
@@ -1104,6 +1109,42 @@ void charIn(char key)
 {
   ImGuiIO& io = ImGui::GetIO();
   io.AddInputCharacter((unsigned short)key);
+}
+
+void spyGUI(DeviceInfo const& info)
+{
+  //LOG(info) << "SPY GUI Header Length: " << info.header.length();
+  if (info.header != nullptr && !info.header.empty()) {
+    auto headerString = info.header;
+    auto header = o2::header::get<o2::header::DataHeader*>(info.header.c_str());
+    ImGui::Begin(fmt::format("Spy {}", header->dataDescription.str).c_str());
+    ImGui::Text(fmt::format("Data Description: {}", header->dataDescription.str).c_str());
+    ImGui::Text(fmt::format("Data Origin: {}", header->dataOrigin.str).c_str());
+    ImGui::Text(fmt::format("Run Number: {}", header->runNumber).c_str());
+
+    if (info.data != nullptr && !info.data.empty() && ImGui::BeginTable("Data", 4, ImGuiTableFlags_Borders)) {
+      for (int row = 0; row < info.data.length() / 4; row++) {
+        ImGui::TableSetupColumn("0");
+        ImGui::TableSetupColumn("1");
+        ImGui::TableSetupColumn("2");
+        ImGui::TableSetupColumn("3");
+        ImGui::TableHeadersRow();
+        ImGui::TableNextRow();
+
+        for (int column = 0; column < 4; column++) {
+          std::stringstream hex;
+          if (info.data.length() > row * 4) {
+            ImGui::TableSetColumnIndex(column);
+            char data = info.data[row * 4 + column];
+            hex << std::hex << (int)data;
+          }
+          ImGui::Text(fmt::format("{}", hex.str()).c_str());
+        }
+      }
+      ImGui::EndTable();
+    }
+    ImGui::End();
+  }
 }
 
 } // namespace o2::framework::gui

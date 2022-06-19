@@ -44,6 +44,7 @@ void updateWindowSize(int x, int y);
 void keyDown(char key);
 void keyUp(char key);
 void charIn(char key);
+void spyGUI(DeviceInfo const& info);
 
 } // namespace gui
 } // namespace o2::framework

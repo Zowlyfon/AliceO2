@@ -66,6 +66,6 @@ void ControlServiceHelpers::processCommand(std::vector<DeviceInfo>& infos,
   } else {
     LOGP(error, "Unknown command {} with argument {}", command, arg);
   }
-};
+}
 
 } // namespace o2::framework
