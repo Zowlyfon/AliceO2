@@ -51,6 +51,8 @@
 #include "Headers/DataHeaderHelpers.h"
 
 #include "ScopedExit.h"
+#include "GuiCallbackContext.h"
+#include "SpyService.h"
 
 #include <Framework/Tracing.h>
 
@@ -1036,6 +1038,7 @@ void DataProcessingDevice::Run()
       auto oldestPossibleTimeslice = mRelayer->getOldestPossibleOutput();
       AsyncQueueHelpers::run(queue, {oldestPossibleTimeslice.timeslice.value});
       uv_run(mState.loop, shouldNotWait ? UV_RUN_NOWAIT : UV_RUN_ONCE);
+
       if ((mState.loopReason & mState.tracingFlags) != 0) {
         mState.severityStack.push_back((int)fair::Logger::GetConsoleSeverity());
         fair::Logger::SetConsoleSeverity(fair::Severity::trace);
