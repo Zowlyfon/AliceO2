@@ -87,6 +87,8 @@ struct DeviceInfo {
   short tracyPort;
   /// Timestamp of the last signal received
   size_t lastSignal;
+  /// Header String
+  std::string header;
 };
 
 } // namespace o2::framework

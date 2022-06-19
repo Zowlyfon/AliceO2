@@ -26,6 +26,8 @@ struct ControlServiceHelpers {
                              pid_t pid,
                              std::string const& command,
                              std::string const& arg);
+  static bool parseHeader(std::string const& header, std::smatch& match);
+  static void processHeader(DeviceInfo& info, std::smatch& match);
 };
 
 } // namespace o2::framework

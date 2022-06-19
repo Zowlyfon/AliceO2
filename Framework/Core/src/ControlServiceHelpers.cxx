@@ -66,6 +66,18 @@ void ControlServiceHelpers::processCommand(std::vector<DeviceInfo>& infos,
   } else {
     LOGP(error, "Unknown command {} with argument {}", command, arg);
   }
-};
+}
+
+bool ControlServiceHelpers::parseHeader(const std::string& header, std::smatch& match)
+{
+  const static std::regex headerRE(".*HEADER: (.*)", std::regex::optimize);
+  return std::regex_search(header, match, headerRE);
+}
+
+void ControlServiceHelpers::processHeader(DeviceInfo& info, std::smatch& match)
+{
+  std::string header = match[1];
+  info.header = header;
+}
 
 } // namespace o2::framework

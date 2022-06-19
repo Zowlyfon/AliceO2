@@ -85,4 +85,11 @@ void ControlService::notifyDeviceState(std::string currentState)
   mDriverClient.flushPending();
 }
 
+void ControlService::sendHeader(std::string header)
+{
+  std::scoped_lock lock(mMutex);
+  mDriverClient.tell(fmt::format("HEADER: {}", header));
+  mDriverClient.flushPending();
+}
+
 } // namespace o2::framework

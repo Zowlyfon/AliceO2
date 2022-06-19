@@ -51,6 +51,8 @@ class ControlService
   void notifyStreamingState(StreamingState state);
   /// Report the current FairMQ state of a given device
   void notifyDeviceState(std::string state);
+  /// Send header
+  void sendHeader(std::string header);
 
  private:
   bool mOnce = false;

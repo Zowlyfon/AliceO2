@@ -1019,6 +1019,10 @@ std::function<void(void)> getGUIDebugger(std::vector<DeviceInfo> const& infos,
     displayMetrics(guiState, driverInfo, infos, metadata, controls, metricsStore);
     displayDriverInfo(driverInfo, driverControl);
 
+    for (auto info : infos) {
+      spyGUI(info);
+    }
+
     int windowPosStepping = (ImGui::GetIO().DisplaySize.y - 500) / guiState.devices.size();
 
     for (size_t i = 0; i < guiState.devices.size(); ++i) {
@@ -1104,6 +1108,17 @@ void charIn(char key)
 {
   ImGuiIO& io = ImGui::GetIO();
   io.AddInputCharacter((unsigned short)key);
+}
+
+void spyGUI(DeviceInfo const& info)
+{
+  //LOG(info) << "SPY GUI Header Length: " << info.header.length();
+  if (!info.header.empty()) {
+    auto header = o2::header::get<o2::header::DataHeader*>(info.header.c_str());
+    ImGui::Begin("Spy");
+    ImGui::Text(header->dataDescription.str);
+    ImGui::End();
+  }
 }
 
 } // namespace o2::framework::gui
