@@ -1113,7 +1113,8 @@ void charIn(char key)
 void spyGUI(DeviceInfo const& info)
 {
   //LOG(info) << "SPY GUI Header Length: " << info.header.length();
-  if (!info.header.empty()) {
+  if (info.header != nullptr && !info.header.empty()) {
+    auto headerString = info.header;
     auto header = o2::header::get<o2::header::DataHeader*>(info.header.c_str());
     ImGui::Begin("Spy");
     ImGui::Text(header->dataDescription.str);
