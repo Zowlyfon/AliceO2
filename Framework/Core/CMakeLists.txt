@@ -36,7 +36,9 @@ o2_add_library(Framework
                        src/ComputingResourceHelpers.cxx
                        src/ConfigContext.cxx
                        src/ControlService.cxx
+                       src/SpyService.cxx
                        src/ControlServiceHelpers.cxx
+                       src/SpyServiceHelpers.cxx
                        src/ControlWebSocketHandler.cxx
                        src/CCDBHelpers.cxx
                        src/DispatchPolicy.cxx

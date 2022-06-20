@@ -76,8 +76,10 @@ bool ControlServiceHelpers::parseHeader(const std::string& header, std::smatch& 
 
 void ControlServiceHelpers::processHeader(DeviceInfo& info, std::smatch& match)
 {
-  std::string header = match[1];
-  info.header = header;
+  if (match.length() >= 1) {
+    std::string header = match[1];
+    info.header = header;
+  }
 }
 
 } // namespace o2::framework

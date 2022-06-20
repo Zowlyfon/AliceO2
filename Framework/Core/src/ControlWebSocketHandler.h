@@ -12,6 +12,7 @@
 #define O2_FRAMEWORK_CONTROLWEBSOCKETHANDLER_H_
 #include "HTTPParser.h"
 #include "ControlServiceHelpers.h"
+#include "SpyServiceHelpers.h"
 #include <map>
 #include <string>
 

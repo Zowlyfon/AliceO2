@@ -17,7 +17,7 @@
 #include "DeviceSpecHelpers.h"
 #include <fairmq/Device.h>
 #include "Headers/DataHeader.h"
-#include "Framework/ControlService.h"
+#include "SpyService.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
@@ -48,7 +48,7 @@ std::vector<SendingPolicy> SendingPolicy::createDefaultPolicies()
               auto header = o2::header::get<o2::header::DataHeader*>(headerString.data());
               LOG(info) << "SPY: " << header->dataDescription.str;
 
-              registry.get<ControlService>().sendHeader(headerString);
+              registry.get<SpyService>().sendHeader(headerString);
 
               auto *channel = proxy.getOutputChannel(channelIndex);
               auto timeout = 1000;

@@ -44,6 +44,7 @@
 #include "TDatabasePDG.h"
 #include "Headers/STFHeader.h"
 #include "Headers/DataHeader.h"
+#include "SpyService.h"
 
 #include <Configuration/ConfigurationInterface.h>
 #include <Configuration/ConfigurationFactory.h>
@@ -408,6 +409,17 @@ o2::framework::ServiceSpec CommonServices::controlSpec()
     .init = [](ServiceRegistry& services, DeviceState& state, fair::mq::ProgOptions& options) -> ServiceHandle {
       return ServiceHandle{TypeIdHelpers::uniqueId<ControlService>(),
                            new ControlService(services, state)};
+    },
+    .configure = noConfiguration(),
+    .kind = ServiceKind::Serial};
+}
+
+o2::framework::ServiceSpec CommonServices::spySpec()
+{
+  return ServiceSpec{
+    .name = "spy",
+    .init = [](ServiceRegistry& services, DeviceState& state, fair::mq::ProgOptions& options) -> ServiceHandle {
+      return ServiceHandle{TypeIdHelpers::uniqueId<SpyService>(), new SpyService(services, state)};
     },
     .configure = noConfiguration(),
     .kind = ServiceKind::Serial};
@@ -928,6 +940,7 @@ std::vector<ServiceSpec> CommonServices::defaultServices(int numThreads)
     infologgerSpec(),
     configurationSpec(),
     controlSpec(),
+    spySpec(),
     rootFileSpec(),
     parallelSpec(),
     callbacksSpec(),

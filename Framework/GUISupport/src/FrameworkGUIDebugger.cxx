@@ -29,6 +29,7 @@
 #include <iostream>
 #include <set>
 #include <string>
+#include <string_view>
 #include <cinttypes>
 #include <numeric>
 
@@ -1117,7 +1118,9 @@ void spyGUI(DeviceInfo const& info)
     auto headerString = info.header;
     auto header = o2::header::get<o2::header::DataHeader*>(info.header.c_str());
     ImGui::Begin("Spy");
-    ImGui::Text(header->dataDescription.str);
+    ImGui::Text(fmt::format("Data Description: {}", header->dataDescription.str).c_str());
+    ImGui::Text(fmt::format("Data Origin: {}", header->dataOrigin.str).c_str());
+    ImGui::Text(fmt::format("Run Number: {}", header->runNumber).c_str());
     ImGui::End();
   }
 }

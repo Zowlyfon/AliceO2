@@ -57,10 +57,10 @@ void ControlWebSocketHandler::frame(char const* frame, size_t s)
     ControlServiceHelpers::processCommand(*mContext.infos, mPid, match[1].str(), match[2].str());
   } else if (doParseConfig(token, configMatch, (*mContext.infos)[mIndex]) && mContext.infos) {
     LOG(debug2) << "Found configuration information for pid " << mPid;
-  } else if (ControlServiceHelpers::parseHeader(token, match)) {
+  } else if (SpyServiceHelpers::parseHeader(token, match)) {
     LOG(info) << "Received header: " << match[1];
-    ControlServiceHelpers::processHeader((*mContext.infos)[mIndex], match);
-    LOG(info) << "Header set: " << (*mContext.infos)[mIndex].header;
+    SpyServiceHelpers::processHeader((*mContext.infos)[mIndex], match);
+    //LOG(info) << "Header set: " << (*mContext.infos)[mIndex].header;
   } else {
     LOG(error) << "Unexpected control data: " << std::string_view(frame, s);
   }
