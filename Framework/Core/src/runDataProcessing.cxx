@@ -1370,6 +1370,30 @@ int runStateMachine(DataProcessorSpecs const& workflow,
         usleep(1000);
         continue;
       }
+      LOG(info) << "PORT: " << driverInfo.port;
+    } while (result != 0);
+  } else if (!frameworkId.empty()) {
+    do {
+      if (serverAddr) {
+        free(serverAddr);
+      }
+      if (driverInfo.port > 64000) {
+        throw runtime_error_f("Unable to find a free port for the driver. Last attempt returned %d", result);
+      }
+      serverAddr = (sockaddr_in*)malloc(sizeof(sockaddr_in));
+      uv_ip4_addr("0.0.0.0", driverInfo.port, serverAddr);
+      auto bindResult = uv_tcp_bind(&serverHandle, (const struct sockaddr*)serverAddr, 0);
+      if (bindResult != 0) {
+        driverInfo.port++;
+        usleep(1000);
+        continue;
+      }
+      result = uv_listen((uv_stream_t*)&serverHandle, 100, ws_connect_callback);
+      if (result != 0) {
+        driverInfo.port++;
+        usleep(1000);
+        continue;
+      }
     } while (result != 0);
   }
 
