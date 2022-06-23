@@ -390,6 +390,7 @@ o2::framework::ServiceSpec CommonServices::driverClientSpec()
     .name = "driverClient",
     .init = [](ServiceRegistry& services, DeviceState& state, fair::mq::ProgOptions& options) -> ServiceHandle {
       auto backend = options.GetPropertyAsString("driver-client-backend");
+      LOG(info) << "BACKEND: " << backend;
       if (backend == "stdout://") {
         return ServiceHandle{TypeIdHelpers::uniqueId<DriverClient>(),
                              new TextDriverClient(services, state)};
