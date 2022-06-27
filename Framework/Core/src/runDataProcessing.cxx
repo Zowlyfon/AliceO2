@@ -1277,6 +1277,37 @@ int runStateMachine(DataProcessorSpecs const& workflow,
         window = debugGUI->initGUI(nullptr);
       }
     }
+  } else if (!frameworkId.empty()) {
+    auto initDebugGUI = []() -> DebugGUI* {
+      uv_lib_t supportLib;
+      int result = 0;
+#ifdef __APPLE__
+      result = uv_dlopen("libO2FrameworkGUISupport.dylib", &supportLib);
+#else
+      result = uv_dlopen("libO2FrameworkGUISupport.so", &supportLib);
+#endif
+      if (result == -1) {
+        LOG(error) << uv_dlerror(&supportLib);
+        return nullptr;
+      }
+      DPLPluginHandle* (*dpl_plugin_callback)(DPLPluginHandle*);
+
+      result = uv_dlsym(&supportLib, "dpl_plugin_callback", (void**)&dpl_plugin_callback);
+      if (result == -1) {
+        LOG(error) << uv_dlerror(&supportLib);
+        return nullptr;
+      }
+      DPLPluginHandle* pluginInstance = dpl_plugin_callback(nullptr);
+      return PluginManager::getByName<DebugGUI>(pluginInstance, "ImGUIDebugGUI");
+    };
+    debugGUI = initDebugGUI();
+    if (debugGUI) {
+      if (true) {
+        window = debugGUI->initGUI("O2 Framework debug GUI");
+      } else {
+        window = debugGUI->initGUI(nullptr);
+      }
+    }
   }
   if (driverInfo.batch == false && window == nullptr && frameworkId.empty()) {
     LOG(warn) << "Could not create GUI. Switching to batch mode. Do you have GLFW on your system?";
@@ -1396,6 +1427,7 @@ int runStateMachine(DataProcessorSpecs const& workflow,
         usleep(1000);
         continue;
       }
+      LOG(info) << "PORT DP: " << driverInfo.port;
     } while (result != 0);
   }
 

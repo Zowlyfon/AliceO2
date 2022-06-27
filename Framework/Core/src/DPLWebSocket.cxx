@@ -289,6 +289,10 @@ void WSDPLHandler::endHeaders()
         break;
       }
     }
+  } else if (false) {
+    //LOG(debug) << "Driver connected to PID : " << header->second;
+    mHandler = std::make_unique<ControlWebSocketHandler>(*mServerContext);
+    mHandler->headers(mHeaders);
   } else {
     if (getenv("DPL_DRIVER_REMOTE_GUI")) {
       LOG(info) << "Connection not bound to a PID";
