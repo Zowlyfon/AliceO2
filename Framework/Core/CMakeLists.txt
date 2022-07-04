@@ -147,6 +147,7 @@ o2_add_library(Framework
                                      AliceO2::Configuration
                                      AliceO2::InfoLogger
                                      AliceO2::Monitoring
+                                     AliceO2::DebugGUI
                                      CURL::libcurl
                                      FairMQ::FairMQ
                                      O2::CommonUtils
