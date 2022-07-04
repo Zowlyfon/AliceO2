@@ -25,6 +25,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "ControlWebSocketHandler.h"
+#include "DebugGUI/imgui.h"
+#include "SpyService.h"
 
 namespace o2::framework
 {
@@ -223,8 +225,44 @@ void remoteGuiCallback(uv_timer_s* ctx)
 
   // if less than 15ms have passed reuse old frame
   if (renderer->gui->lastFrame == nullptr || frameLatency / 1000000 > 15) {
+    auto headerString = renderer->handler->mServerContext->registry->get<SpyService>().spyGuiData.header;
+    auto header = o2::header::get<o2::header::DataHeader*>(headerString.c_str());
+    auto data = renderer->handler->mServerContext->registry->get<SpyService>().spyGuiData.data;
     renderer->gui->plugin->pollGUIPreRender(renderer->gui->window, (float)frameLatency / 1000000000.0f);
-    draw_data = renderer->gui->plugin->pollGUIRender(renderer->gui->callback);
+    //draw_data = renderer->gui->plugin->pollGUIRender(renderer->gui->callback);
+
+    draw_data = renderer->gui->plugin->pollGUIRender([header, data](){
+      if (header != nullptr) {
+        ImGui::Begin(fmt::format("Spy {}", header->dataDescription.str).c_str());
+        ImGui::Text(fmt::format("Data Description: {}", header->dataDescription.str).c_str());
+        ImGui::Text(fmt::format("Data Origin: {}", header->dataOrigin.str).c_str());
+        ImGui::Text(fmt::format("Run Number: {}", header->runNumber).c_str());
+
+        if (data != nullptr && !data.empty() && ImGui::BeginTable("Data", 4, ImGuiTableFlags_Borders)) {
+          for (int row = 0; row < data.length() / 4; row++) {
+            ImGui::TableSetupColumn("0");
+            ImGui::TableSetupColumn("1");
+            ImGui::TableSetupColumn("2");
+            ImGui::TableSetupColumn("3");
+            ImGui::TableHeadersRow();
+            ImGui::TableNextRow();
+
+            for (int column = 0; column < 4; column++) {
+              std::stringstream hex;
+              if (data.length() > row * 4) {
+                ImGui::TableSetColumnIndex(column);
+                char dataElem = data[row * 4 + column];
+                hex << std::hex << (int)dataElem;
+              }
+              ImGui::Text(fmt::format("{}", hex.str()).c_str());
+            }
+          }
+          ImGui::EndTable();
+        }
+        ImGui::End();
+      }
+    });
+
     renderer->gui->plugin->pollGUIPostRender(renderer->gui->window, draw_data);
   } else {
     draw_data = renderer->gui->lastFrame;
