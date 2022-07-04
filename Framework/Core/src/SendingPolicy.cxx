@@ -46,9 +46,14 @@ std::vector<SendingPolicy> SendingPolicy::createDefaultPolicies()
               //LOG(info) << "SPY Header: " << headerString.data() << " | Length: " << headerString.length();
 
               auto header = o2::header::get<o2::header::DataHeader*>(headerString.data());
-              LOG(info) << "SPY: " << header->dataDescription.str;
+              //LOG(info) << "SPY: " << header->dataDescription.str;
 
               registry.get<SpyService>().sendHeader(headerString);
+              registry.get<SpyService>().spyGuiData.header = headerString;
+
+              std::string dataString((char*)parts[1].GetData(), parts[1].GetSize());
+              registry.get<SpyService>().sendData(headerString, 0);
+              registry.get<SpyService>().spyGuiData.data = headerString;
 
               auto *channel = proxy.getOutputChannel(channelIndex);
               auto timeout = 1000;
