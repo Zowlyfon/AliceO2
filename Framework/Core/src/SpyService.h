@@ -13,6 +13,11 @@ struct ServiceRegistry;
 struct DeviceState;
 struct DriverClient;
 
+struct SpyGuiData {
+  std::string header;
+  std::string data;
+};
+
 class SpyService
 {
  public:
@@ -21,12 +26,18 @@ class SpyService
   /// Send header;
   void sendHeader(std::string header);
 
+  /// Send data;
+  void sendData(std::string data, int num);
+
+  SpyGuiData spyGuiData;
+
  private:
   bool mOnce = false;
   ServiceRegistry& mRegistry;
   DeviceState& mDeviceState;
   DriverClient& mDriverClient;
   std::mutex mMutex;
+
 };
 }
 

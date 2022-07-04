@@ -27,4 +27,11 @@ void SpyService::sendHeader(std::string header)
   mDriverClient.flushPending();
 }
 
+void SpyService::sendData(std::string data, int num)
+{
+  std::scoped_lock lock(mMutex);
+  mDriverClient.tell(fmt::format("DATA: {}, {}", num, data));
+  mDriverClient.flushPending();
+}
+
 } // namespace o2::framework

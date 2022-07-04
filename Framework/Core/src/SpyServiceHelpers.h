@@ -17,6 +17,8 @@ class SpyServiceHelpers
  public:
   static bool parseHeader(std::string const& header, std::smatch& match);
   static void processHeader(DeviceInfo& info, std::smatch& match);
+  static bool parseData(std::string const& data, std::smatch& match);
+  static void processData(DeviceInfo& info, std::smatch& match);
 };
 }
 
