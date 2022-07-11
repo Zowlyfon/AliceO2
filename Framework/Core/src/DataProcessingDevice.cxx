@@ -51,6 +51,8 @@
 #include "Headers/DataHeaderHelpers.h"
 
 #include "ScopedExit.h"
+#include "GuiCallbackContext.h"
+#include "SpyService.h"
 
 #include <Framework/Tracing.h>
 
@@ -1015,7 +1017,7 @@ void DataProcessingDevice::Run()
         fair::Logger::SetConsoleSeverity(fair::Severity::trace);
       }
       // Run the asynchronous queue just before sleeping again, so that:
-      // - we can trigger further events from the queue
+      // - we can trigger further events from the queueI
       // - we can guarantee this is the last thing we do in the loop (
       //   assuming no one else is adding to the queue before this point).
       auto onDrop = [&registry = mServiceRegistry](TimesliceSlot slot, std::vector<MessageSet>& dropped, TimesliceIndex::OldestOutputInfo oldestOutputInfo) {
@@ -1033,6 +1035,14 @@ void DataProcessingDevice::Run()
       auto oldestPossibleTimeslice = mRelayer->getOldestPossibleOutput();
       AsyncQueueHelpers::run(queue, {oldestPossibleTimeslice.timeslice.value});
       uv_run(mState.loop, shouldNotWait ? UV_RUN_NOWAIT : UV_RUN_ONCE);
+
+
+      GuiRenderer* renderer = mServiceRegistry.get<SpyService>().renderer;
+
+      if (uv_now(mState.loop) > renderer->enableAfter && renderer->guiConnected) {
+        uv_run(mState.loop, UV_RUN_DEFAULT);
+      }
+
       if ((mState.loopReason & mState.tracingFlags) != 0) {
         mState.severityStack.push_back((int)fair::Logger::GetConsoleSeverity());
         fair::Logger::SetConsoleSeverity(fair::Severity::trace);
