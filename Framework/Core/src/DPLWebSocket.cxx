@@ -217,6 +217,8 @@ void remoteGuiCallback(uv_timer_s* ctx)
   GuiRenderer* renderer = reinterpret_cast<GuiRenderer*>(ctx->data);
   assert(renderer);
 
+  LOG(info) << "remoteGuiCallback";
+
   void* frame = nullptr;
   void* draw_data = nullptr;
   int size;
@@ -231,27 +233,32 @@ void remoteGuiCallback(uv_timer_s* ctx)
     renderer->gui->plugin->pollGUIPreRender(renderer->gui->window, (float)frameLatency / 1000000000.0f);
     //draw_data = renderer->gui->plugin->pollGUIRender(renderer->gui->callback);
 
-    draw_data = renderer->gui->plugin->pollGUIRender([header, data](){
+    draw_data = renderer->gui->plugin->pollGUIRender([ctx, renderer, header, data](){
       if (header != nullptr) {
         ImGui::Begin(fmt::format("Spy {}", header->dataDescription.str).c_str());
         ImGui::Text(fmt::format("Data Description: {}", header->dataDescription.str).c_str());
         ImGui::Text(fmt::format("Data Origin: {}", header->dataOrigin.str).c_str());
         ImGui::Text(fmt::format("Run Number: {}", header->runNumber).c_str());
 
-        if (data != nullptr && !data.empty() && ImGui::BeginTable("Data", 4, ImGuiTableFlags_Borders)) {
-          for (int row = 0; row < data.length() / 4; row++) {
-            ImGui::TableSetupColumn("0");
-            ImGui::TableSetupColumn("1");
-            ImGui::TableSetupColumn("2");
-            ImGui::TableSetupColumn("3");
-            ImGui::TableHeadersRow();
-            ImGui::TableNextRow();
+        ImGui::BeginChild("##ScrollingRegion", ImVec2(0, 430), false, ImGuiWindowFlags_HorizontalScrollbar);
 
-            for (int column = 0; column < 4; column++) {
+        if (data != nullptr && !data.empty() && ImGui::BeginTable("Data", 5, ImGuiTableFlags_Borders)) {
+          ImGui::TableSetupColumn("");
+          ImGui::TableSetupColumn("#0");
+          ImGui::TableSetupColumn("#1");
+          ImGui::TableSetupColumn("#2");
+          ImGui::TableSetupColumn("#3");
+          ImGui::TableHeadersRow();
+          for (int row = 0; row < data.length() / 4; row++) {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%d", row * 4);
+
+            for (int column = 1; column < 5; column++) {
               std::stringstream hex;
               if (data.length() > row * 4) {
                 ImGui::TableSetColumnIndex(column);
-                char dataElem = data[row * 4 + column];
+                unsigned char dataElem = data[row * 4 + (column - 1)];
                 hex << std::hex << (int)dataElem;
               }
               ImGui::Text(fmt::format("{}", hex.str()).c_str());
@@ -259,11 +266,19 @@ void remoteGuiCallback(uv_timer_s* ctx)
           }
           ImGui::EndTable();
         }
+        ImGui::EndChild();
+
+        if (ImGui::Button("Skip 10s")) {
+          renderer->enableAfter = uv_now(ctx->loop) + 10000;
+          uv_stop(ctx->loop);
+        }
+
         ImGui::End();
       }
     });
 
     renderer->gui->plugin->pollGUIPostRender(renderer->gui->window, draw_data);
+    LOG(info) << "remoteGuiCallback if 1";
   } else {
     draw_data = renderer->gui->lastFrame;
   }
@@ -273,6 +288,8 @@ void remoteGuiCallback(uv_timer_s* ctx)
   encode_websocket_frames(outputs, (const char*)frame, size, WebSocketOpCode::Binary, 0);
   renderer->handler->write(outputs);
   free(frame);
+
+  renderer->guiConnected = true;
 
   if (frameLatency / 1000000 > 15) {
     uint64_t frameEnd = uv_hrtime();
