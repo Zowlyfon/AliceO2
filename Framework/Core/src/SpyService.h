@@ -18,6 +18,8 @@ struct SpyGuiData {
   std::string data;
 };
 
+struct GuiRenderer;
+
 class SpyService
 {
  public:
@@ -30,6 +32,7 @@ class SpyService
   void sendData(std::string data, int num);
 
   SpyGuiData spyGuiData;
+  GuiRenderer* renderer;
 
  private:
   bool mOnce = false;

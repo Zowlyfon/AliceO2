@@ -3,10 +3,12 @@
 //
 
 #include "SpyService.h"
+#include <uv.h>
 #include "Framework/DriverClient.h"
 #include "Framework/DeviceSpec.h"
 #include "Framework/DeviceState.h"
 #include "Framework/ServiceRegistry.h"
+#include "GuiCallbackContext.h"
 
 #include <string>
 #include <string_view>
@@ -18,6 +20,7 @@ SpyService::SpyService(ServiceRegistry& registry, DeviceState& deviceState)
     mDeviceState{deviceState},
     mDriverClient{registry.get<DriverClient>()}
 {
+  renderer = new GuiRenderer;
 }
 
 void SpyService::sendHeader(std::string header)
