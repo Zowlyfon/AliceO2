@@ -1137,6 +1137,7 @@ int doChild(int argc, char** argv, ServiceRegistry& serviceRegistry,
   };
 
   runner.AddHook<fair::mq::hooks::InstantiateDevice>(afterConfigParsingCallback);
+
   auto result = runner.Run();
   serviceRegistry.preExitCallbacks();
   return result;
@@ -1302,7 +1303,7 @@ int runStateMachine(DataProcessorSpecs const& workflow,
     };
     debugGUI = initDebugGUI();
     if (debugGUI) {
-      if (true) {
+      if (false) {
         window = debugGUI->initGUI("O2 Framework debug GUI");
       } else {
         window = debugGUI->initGUI(nullptr);
@@ -1403,7 +1404,6 @@ int runStateMachine(DataProcessorSpecs const& workflow,
         usleep(1000);
         continue;
       }
-      LOG(info) << "PORT: " << driverInfo.port;
     } while (result != 0);
   } else if (!frameworkId.empty()) {
     do {
@@ -1427,7 +1427,7 @@ int runStateMachine(DataProcessorSpecs const& workflow,
         usleep(1000);
         continue;
       }
-      LOG(info) << "PORT DP: " << driverInfo.port;
+      LOG(info) << "PORT DP: " << driverInfo.port << " " << frameworkId;
     } while (result != 0);
   }
 
@@ -1772,6 +1772,7 @@ int runStateMachine(DataProcessorSpecs const& workflow,
           }
           guiDeployedOnce = true;
         }
+        break;
         break;
       case DriverState::MERGE_CONFIGS: {
         try {

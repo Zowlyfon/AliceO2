@@ -38,22 +38,13 @@ std::vector<SendingPolicy> SendingPolicy::createDefaultPolicies()
             .send = [](FairMQDeviceProxy& proxy, fair::mq::Parts& parts, ChannelIndex channelIndex, ServiceRegistry& registry) {
 
               std::string headerString((char*)parts[0].GetData(), parts[0].GetSize());
-              //std::vector<char> headerVector((char*)parts[0].GetData(), (char*)parts[0].GetData() + parts[0].GetSize());
-
-
-              //LOG(info) << "SPY Raw Header: " << (char*)parts[0].GetData() << " | Length: " << sizeof(parts[0].GetData());
-              //LOG(info) << "SPY Vector Header: " << (char*)headerVector.data() << " | Length: " << headerVector.size();
-              //LOG(info) << "SPY Header: " << headerString.data() << " | Length: " << headerString.length();
-
-              auto header = o2::header::get<o2::header::DataHeader*>(headerString.data());
-              //LOG(info) << "SPY: " << header->dataDescription.str;
 
               registry.get<SpyService>().sendHeader(headerString);
               registry.get<SpyService>().spyGuiData.header = headerString;
 
               std::string dataString((char*)parts[1].GetData(), parts[1].GetSize());
-              registry.get<SpyService>().sendData(headerString, 0);
-              registry.get<SpyService>().spyGuiData.data = headerString;
+              registry.get<SpyService>().sendData(dataString, 0);
+              registry.get<SpyService>().spyGuiData.data = dataString;
 
               auto *channel = proxy.getOutputChannel(channelIndex);
               auto timeout = 1000;
