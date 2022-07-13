@@ -261,7 +261,11 @@ void remoteGuiCallback(uv_timer_s* ctx)
                 unsigned char dataElem = data[row * 4 + (column - 1)];
                 hex << std::hex << (int)dataElem;
               }
-              ImGui::Text(fmt::format("{}", hex.str()).c_str());
+              std::string hexStr = hex.str();
+              if (hexStr.length() == 1) {
+                hexStr.insert(0, "0");
+              }
+              ImGui::Text("%s", hexStr.c_str());
             }
           }
           ImGui::EndTable();
