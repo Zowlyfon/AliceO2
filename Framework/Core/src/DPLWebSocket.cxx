@@ -236,9 +236,18 @@ void remoteGuiCallback(uv_timer_s* ctx)
     draw_data = renderer->gui->plugin->pollGUIRender([ctx, renderer, header, data](){
       if (header != nullptr) {
         ImGui::Begin(fmt::format("Spy {}", header->dataDescription.str).c_str());
-        ImGui::Text(fmt::format("Data Description: {}", header->dataDescription.str).c_str());
-        ImGui::Text(fmt::format("Data Origin: {}", header->dataOrigin.str).c_str());
-        ImGui::Text(fmt::format("Run Number: {}", header->runNumber).c_str());
+        ImGui::Text("sMagicString: %d", header->sMagicString);
+        ImGui::Text("sVersion: %d", header->sVersion);
+        ImGui::Text("sHeaderType: %s", header->sHeaderType.str);
+        ImGui::Text("sSerializationMethod: %s", header->sSerializationMethod.str);
+        ImGui::Text("Header size: %d", header->headerSize);
+        ImGui::Text("Payload Size: %d", header->payloadSize);
+        ImGui::Text("Header Version: %d", header->headerVersion);
+        ImGui::Text("flagsNextHeader: %d", header->flagsNextHeader);
+        ImGui::Text("serialization: %s", header->serialization.str);
+        ImGui::Text("Data Description: %s", header->dataDescription.str);
+        ImGui::Text("Data Origin: %s", header->dataOrigin.str);
+        ImGui::Text("Run Number: %d", header->runNumber);
 
         ImGui::BeginChild("##ScrollingRegion", ImVec2(0, 430), false, ImGuiWindowFlags_HorizontalScrollbar);
 
