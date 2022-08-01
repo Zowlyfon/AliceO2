@@ -7,6 +7,8 @@
 
 #include "Framework/ServiceHandle.h"
 #include <mutex>
+#include <vector>
+#include <fairmq/FwdDecls.h>
 
 namespace o2::framework {
 struct ServiceRegistry;
@@ -15,7 +17,7 @@ struct DriverClient;
 
 struct SpyGuiData {
   std::string header;
-  std::string data;
+  std::vector<std::string> data;
 };
 
 struct GuiRenderer;
@@ -31,8 +33,10 @@ class SpyService
   /// Send data;
   void sendData(std::string data, int num);
 
-  SpyGuiData spyGuiData;
+  std::vector<SpyGuiData> spyGuiData;
   GuiRenderer* renderer;
+  int selectedFrame = 0;
+  int selectedData = 0;
 
  private:
   bool mOnce = false;
