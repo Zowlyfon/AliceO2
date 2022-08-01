@@ -11,7 +11,7 @@
 #ifndef O2_FRAMEWORK_SENDINGPOLICY_H_
 #define O2_FRAMEWORK_SENDINGPOLICY_H_
 
-#include "Framework/ServiceRegistry.h"
+
 #include "Framework/DataProcessorMatchers.h"
 #include "Framework/RoutingIndices.h"
 #include <fairmq/FwdDecls.h>
@@ -21,6 +21,8 @@
 
 namespace o2::framework
 {
+
+class ServiceRegistry;
 
 class FairMQDeviceProxy;
 
