@@ -10,8 +10,14 @@
 #include <string>
 #include <regex>
 
+namespace o2::header {
+  class DataHeader;
+}
+
 namespace o2::framework
 {
+  class GuiRenderer;
+  class HeaderType;
 class SpyServiceHelpers
 {
  public:
@@ -19,6 +25,7 @@ class SpyServiceHelpers
   static void processHeader(DeviceInfo& info, std::smatch& match);
   static bool parseData(std::string const& data, std::smatch& match);
   static void processData(DeviceInfo& info, std::smatch& match);
+  static void webGUI(uv_timer_s* ctx, GuiRenderer* renderer, const o2::header::DataHeader* header, const std::string& data);
 };
 }
 
