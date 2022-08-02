@@ -94,7 +94,7 @@ find_package_handle_standard_args(${PKGNAME}
 
 # if everything was found, assemble target with dependencies
 if(${${PKGNAME}_FOUND})
-  add_library(${PKGNAME}::${PKGNAME} IMPORTED INTERFACE GLOBAL ../Framework/Core/src/SpyService.cxx ../Framework/Core/src/SpyService.h ../Framework/Core/src/SpyServiceHelpers.cxx ../Framework/Core/src/SpyServiceHelpers.h)
+  add_library(${PKGNAME}::${PKGNAME} IMPORTED INTERFACE GLOBAL)
   target_compile_definitions(${PKGNAME}::${PKGNAME} INTERFACE "HAVE_${PKGENVNAME}")
 
   foreach(lib ${${PKGNAME}_LIBS})
