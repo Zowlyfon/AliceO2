@@ -51,7 +51,19 @@ void SpyServiceHelpers::processData(DeviceInfo& info, std::smatch& match)
   }
 }
 
-void SpyServiceHelpers::webGUI(uv_timer_s* ctx, GuiRenderer* renderer, const o2::header::DataHeader* header, const std::string& data) {
+void SpyServiceHelpers::webGUI(uv_timer_s* ctx, GuiRenderer* renderer) {
+  auto registry = renderer->handler->mServerContext->registry;
+  auto spyGuiData = registry->get<SpyService>().spyGuiData;
+  int selectedFrame = registry->get<SpyService>().selectedFrame;
+  int selectedData = registry->get<SpyService>().selectedData;
+
+  auto headerString = spyGuiData[selectedFrame].header;
+  auto data = spyGuiData[selectedFrame].data[selectedData];
+
+  auto header = o2::header::get<o2::header::DataHeader*>(headerString.c_str());
+
+  auto selectedHeader = registry->get<SpyService>().selectedHeader;
+
   if (header != nullptr) {
     ImGui::Begin(fmt::format("Spy {}", header->dataDescription.str).c_str());
     ImGui::CollapsingHeader("Actions", ImGuiTreeNodeFlags_DefaultOpen);
@@ -59,12 +71,47 @@ void SpyServiceHelpers::webGUI(uv_timer_s* ctx, GuiRenderer* renderer, const o2:
       renderer->enableAfter = uv_now(ctx->loop) + 10000;
       uv_stop(ctx->loop);
     }
-    if (ImGui::Button("Previous Frame")) {
-      renderer->handler->mServerContext->registry->get<SpyService>().selectedFrame--;
+
+    const char* items[] = { "AAAA", "BBBB", "CCCC", "DDDD", "EEEE", "FFFF", "GGGG", "HHHH", "IIII", "JJJJ", "KKKK", "LLLLLLL", "MMMM", "OOOOOOO" };
+    static int item_current_idx = 0; // Here we store our selection data as an index.
+    const char* combo_preview_value = items[item_current_idx];  // Pass in the preview value visible before opening the combo (it could be anything)
+    if (ImGui::BeginCombo("combo 1", combo_preview_value))
+    {
+      for (int n = 0; n < IM_ARRAYSIZE(items); n++)
+      {
+        const bool is_selected = (item_current_idx == n);
+        if (ImGui::Selectable(items[n], is_selected))
+          item_current_idx = n;
+
+        // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+        if (is_selected)
+          ImGui::SetItemDefaultFocus();
+      }
+      ImGui::EndCombo();
     }
-    if (ImGui::Button("Next Frame")) {
-      renderer->handler->mServerContext->registry->get<SpyService>().selectedFrame++;
+
+    static int selectedHeaderIndex = 0;
+
+    if (ImGui::BeginCombo("Header", selectedHeader.c_str())) {
+      int i = 0;
+      for (const auto d : spyGuiData) {
+        auto h = o2::header::get<o2::header::DataHeader*>(d.header.c_str());
+        std::string value = std::to_string(h->sMagicString + i);
+        //bool isSelected = selectedFrame == i;
+        bool isSelected = selectedHeaderIndex == i;
+        if (ImGui::Selectable(value.c_str(), isSelected)) {
+          registry->get<SpyService>().selectedHeader = value;
+          registry->get<SpyService>().selectedFrame = i;
+          selectedHeaderIndex = i;
+        }
+        if (isSelected) {
+          ImGui::SetItemDefaultFocus();
+        }
+        i++;
+      }
+      ImGui::EndCombo();
     }
+    ImGui::Text("Selected Frame Index: %d", selectedFrame);
     if (ImGui::CollapsingHeader("Header", ImGuiTreeNodeFlags_DefaultOpen)) {
       ImGui::Columns(2);
       ImGui::Text("sMagicString: %d", header->sMagicString);
@@ -80,7 +127,7 @@ void SpyServiceHelpers::webGUI(uv_timer_s* ctx, GuiRenderer* renderer, const o2:
       ImGui::Text("Data Description: %s", header->dataDescription.str);
       ImGui::Text("Data Origin: %s", header->dataOrigin.str);
       ImGui::Text("Run Number: %d", header->runNumber);
-      ImGui::Text("Sub Specification: %s", header->subSpecification);
+      ImGui::Text("Sub Specification: %d", header->subSpecification);
 
       ImGui::Columns(1);
     }

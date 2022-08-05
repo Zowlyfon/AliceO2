@@ -44,6 +44,8 @@ class SpyService
   GuiRenderer* renderer;
   int selectedFrame = 0;
   int selectedData = 0;
+  int debugCurrentItemIndex = 0;
+  std::string selectedHeader = "";
 
  private:
   bool mOnce = false;

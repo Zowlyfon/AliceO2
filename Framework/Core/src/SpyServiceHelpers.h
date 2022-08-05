@@ -31,7 +31,7 @@ class SpyServiceHelpers
   static void processHeader(DeviceInfo& info, std::smatch& match);
   static bool parseData(std::string const& data, std::smatch& match);
   static void processData(DeviceInfo& info, std::smatch& match);
-  static void webGUI(uv_timer_s* ctx, GuiRenderer* renderer, const o2::header::DataHeader* header, const std::string& data);
+  static void webGUI(uv_timer_s* ctx, GuiRenderer* renderer);
 };
 }
 

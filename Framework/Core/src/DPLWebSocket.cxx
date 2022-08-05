@@ -228,17 +228,9 @@ void remoteGuiCallback(uv_timer_s* ctx)
   if (renderer->gui->lastFrame == nullptr || frameLatency / 1000000 > 15) {
 
 
-    auto spyGuiData = renderer->handler->mServerContext->registry->get<SpyService>().spyGuiData;
-    int selectedFrame = renderer->handler->mServerContext->registry->get<SpyService>().selectedFrame;
-    int selectedData = renderer->handler->mServerContext->registry->get<SpyService>().selectedData;
-
-    auto headerString = spyGuiData[selectedFrame].header;
-    auto data = spyGuiData[selectedFrame].data[selectedData];
-
-    auto header = o2::header::get<o2::header::DataHeader*>(headerString.c_str());
     renderer->gui->plugin->pollGUIPreRender(renderer->gui->window, (float)frameLatency / 1000000000.0f);
 
-    std::function<void()> webGUICallback = [ctx, renderer, header, data](){ SpyServiceHelpers::webGUI(ctx, renderer, header, data); };
+    std::function<void()> webGUICallback = [ctx, renderer](){ SpyServiceHelpers::webGUI(ctx, renderer); };
 
     draw_data = renderer->gui->plugin->pollGUIRender(webGUICallback);
 
