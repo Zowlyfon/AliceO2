@@ -65,7 +65,21 @@ AlgorithmSpec simplePipe(std::string const& what, int minDelay)
     return adaptStateless([what, minDelay](DataAllocator& outputs, RawDeviceService& device) {
       LOGP(info, "Invoked {}", what);
       device.device()->WaitFor(std::chrono::milliseconds(minDelay));
-      auto& bData = outputs.make<int>(OutputRef{what}, 1);
+      auto& bData = outputs.make<int>(OutputRef{what}, 10);
+    });
+  })};
+}
+
+AlgorithmSpec simplePipe(std::string const& what, std::string const& what2, int minDelay)
+{
+  return AlgorithmSpec{adaptStateful([what, what2, minDelay](RunningWorkflowInfo const& runningWorkflow) {
+    srand(getpid());
+    LOG(info) << "There are " << runningWorkflow.devices.size() << "  devices in the workflow";
+    return adaptStateless([what, what2, minDelay](DataAllocator& outputs, RawDeviceService& device) {
+      LOGP(info, "Invoked {}", what);
+      device.device()->WaitFor(std::chrono::milliseconds(minDelay));
+      auto& bData = outputs.make<int>(OutputRef{what}, 10);
+      auto& cData = outputs.make<int>(OutputRef{what2}, 10);
     });
   })};
 }
@@ -76,13 +90,17 @@ WorkflowSpec defineDataProcessing(ConfigContext const& specs)
   DataProcessorSpec a{
     .name = "A",
     .outputs = {OutputSpec{{"a1"}, "TST", "A1"},
-                OutputSpec{{"a2"}, "TST", "A2"}},
+                OutputSpec{{"a2"}, "TST", "A2"},
+                OutputSpec{{"a3"}, "TST", "A3"}},
     .algorithm = AlgorithmSpec{adaptStateless(
       [](DataAllocator& outputs, RawDeviceService& device, DataTakingContext& context, ProcessingContext& pcx) {
         // static RateLimiter limiter;
         // limiter.check(pcx, std::stoi(device.device()->fConfig->GetValue<std::string>("timeframes-rate-limit")), 2000);
-        auto& aData = outputs.make<int>(OutputRef{"a1"}, 1);
-        auto& bData = outputs.make<int>(OutputRef{"a2"}, 1);
+        auto& aData = outputs.make<int>(OutputRef{"a1"}, 10);
+        auto& bData = outputs.make<int>(OutputRef{"a2"}, 10);
+        auto& cData = outputs.make<int>(OutputRef{"a3"}, 10);
+        static int foo = 0;
+        aData[0] = foo++;
       })},
     .options = {ConfigParamSpec{"some-device-param", VariantType::Int, 1, {"Some device parameter"}},
                 }};
@@ -92,9 +110,11 @@ WorkflowSpec defineDataProcessing(ConfigContext const& specs)
     .outputs = {OutputSpec{{"b1"}, "TST", "B1"}},
     .algorithm = simplePipe("b1", 1000)};
   DataProcessorSpec c{.name = "C",
-                      .inputs = {InputSpec{"x", "TST", "A2"}},
-                      .outputs = {OutputSpec{{"c1"}, "TST", "C1"}},
-                      .algorithm = simplePipe("c1", 2000)};
+                      .inputs = {InputSpec{"x", "TST", "A2"},
+                                 InputSpec{"x2", "TST", "A3"}},
+                      .outputs = {OutputSpec{{"c1"}, "TST", "C1"},
+                                  OutputSpec{{"c2"}, "TST", "C2"}},
+                      .algorithm = simplePipe("c1", "c2",2000)};
   DataProcessorSpec d{.name = "D",
                       .inputs = {InputSpec{"a", "TST", "A1"},
                                  InputSpec{"b", "TST", "B1"},
