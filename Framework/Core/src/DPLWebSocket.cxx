@@ -312,6 +312,8 @@ void WSDPLHandler::endHeaders()
       mHandler = std::make_unique<GUIWebSocketHandler>(*mServerContext, renderer);
       mHandler->headers(mHeaders);
       mServerContext->gui->renderers.insert(renderer);
+
+      mServerContext->registry->get<SpyService>().renderer = renderer;
       LOGP(info, "RemoteGUI connected, {} running", mServerContext->gui->renderers.size());
     } else {
       LOG(warning) << "Connection not bound to a PID however DPL_DRIVER_REMOTE_GUI is not set. Skipping.";
