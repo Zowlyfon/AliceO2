@@ -11,7 +11,6 @@
 #ifndef O2_FRAMEWORK_SENDINGPOLICY_H_
 #define O2_FRAMEWORK_SENDINGPOLICY_H_
 
-
 #include "Framework/DataProcessorMatchers.h"
 #include "Framework/RoutingIndices.h"
 #include <fairmq/FwdDecls.h>

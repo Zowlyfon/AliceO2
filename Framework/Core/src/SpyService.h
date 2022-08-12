@@ -43,14 +43,12 @@ class SpyService
 
   fair::mq::Parts* parts;
 
-
  private:
   bool mOnce = false;
   ServiceRegistry& mRegistry;
   DeviceState& mDeviceState;
   DriverClient& mDriverClient;
   std::mutex mMutex;
-
 };
 } // namespace o2::framework
 

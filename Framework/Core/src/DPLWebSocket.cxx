@@ -227,7 +227,6 @@ void remoteGuiCallback(uv_timer_s* ctx)
   // if less than 15ms have passed reuse old frame
   if (renderer->gui->lastFrame == nullptr || frameLatency / 1000000 > 15) {
 
-
     renderer->gui->plugin->pollGUIPreRender(renderer->gui->window, (float)frameLatency / 1000000000.0f);
 
     std::function<void()> webGUICallback = [ctx, renderer]() { SpyServiceHelpers::webGUI(ctx, renderer); };
