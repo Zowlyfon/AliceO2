@@ -1384,7 +1384,6 @@ void DataProcessingDevice::handleData(DataProcessorContext& context, InputChanne
 {
   ZoneScopedN("DataProcessingDevice::handleData");
   assert(context.deviceContext->spec->inputChannels.empty() == false);
-  assert(info.parts.Size() > 0);
 
   // Initial part. Let's hide all the unnecessary and have
   // simple lambdas for each of the steps I am planning to have.

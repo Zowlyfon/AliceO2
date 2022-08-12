@@ -19,12 +19,15 @@
 #include "TPCWorkflow/TPCFourierTransformEPNSpec.h"
 #include "TPCWorkflow/TPCFourierTransformAggregatorSpec.h"
 #include "TPCWorkflow/TPCDistributeIDCSpec.h"
+#include "DetectorsRaw/HBFUtilsInitializer.h"
+#include "DetectorsRaw/HBFUtils.h"
 
 #include <boost/throw_exception.hpp>
 #include "Framework/DataRefUtils.h"
 #include "Framework/ControlService.h"
 #include "Algorithm/RangeTokenizer.h"
 #include "TRandom.h"
+#include "TKey.h"
 
 #include <unistd.h>
 
@@ -35,7 +38,7 @@ using namespace o2::framework;
     LOG(fatal) << R"(Test condition ")" #condition R"(" failed)"; \
   }
 
-DataProcessorSpec generateIDCsCRU(int lane, const unsigned int maxTFs, const std::vector<uint32_t>& crus, const bool slowgen);
+DataProcessorSpec generateIDCsCRU(int lane, const unsigned int maxTFs, const std::vector<uint32_t>& crus, const bool slowgen, const bool delay, const bool loadFromFile, const int dropTFsRandom, const std::vector<int>& rangeTFsDrop);
 DataProcessorSpec ftAggregatorIDC(const unsigned int nFourierCoefficients, const unsigned int rangeIDC, const unsigned int maxTFs, const bool debug);
 DataProcessorSpec receiveFourierCoeffEPN(const unsigned int maxTFs, const unsigned int nFourierCoefficients);
 DataProcessorSpec compare_EPN_AGG();
@@ -55,12 +58,22 @@ void customize(std::vector<ConfigParamSpec>& workflowOptions)
     {"seed", VariantType::Int, 0, {"Seed for the random IDC generator."}},
     {"only-idc-gen", VariantType::Bool, false, {"Start only the IDC generator device"}},
     {"fast-gen", VariantType::Bool, false, {"fast generation of IDCs by setting fixed IDC value"}},
+    {"load-from-file", VariantType::Bool, false, {"load from file"}},
     {"debug", VariantType::Bool, false, {"create debug for FT"}},
     {"idc-gen-lanes", VariantType::Int, 1, {"number of parallel lanes for generation of IDCs"}},
     {"idc-gen-time-lanes", VariantType::Int, 1, {"number of parallel lanes for generation of IDCs"}},
+    {"delay", VariantType::Bool, false, {"Add delay for sending IDCs"}},
+    {"dropTFsRandom", VariantType::Int, 0, {"Drop randomly whole TFs every dropTFsRandom TFs (for all CRUs)"}},
+    {"dropTFsRange", VariantType::String, "", {"Drop range of TFs"}},
+    {"hbfutils-config", VariantType::String, "hbfutils", {"config file for HBFUtils (or none) to get number of orbits per TF"}},
     {"nthreads", VariantType::Int, 1, {"Number of threads."}}};
-
+  o2::raw::HBFUtilsInitializer::addConfigOption(options);
   std::swap(workflowOptions, options);
+}
+
+void customize(std::vector<o2::framework::CallbacksPolicy>& policies)
+{
+  o2::raw::HBFUtilsInitializer::addNewTimeSliceCallback(policies);
 }
 
 #include "Framework/runDataProcessing.h"
@@ -68,6 +81,7 @@ void customize(std::vector<ConfigParamSpec>& workflowOptions)
 WorkflowSpec defineDataProcessing(ConfigContext const& config)
 {
   const auto tpcCRUs = o2::RangeTokenizer::tokenize<int>(config.options().get<std::string>("crus"));
+  const auto rangeTFsDrop = o2::RangeTokenizer::tokenize<int>(config.options().get<std::string>("dropTFsRange"));
   const auto nCRUs = tpcCRUs.size();
   const auto first = tpcCRUs.begin();
   const auto last = std::min(tpcCRUs.end(), first + nCRUs);
@@ -79,14 +93,18 @@ WorkflowSpec defineDataProcessing(ConfigContext const& config)
   const auto seed = static_cast<unsigned int>(config.options().get<int>("seed"));
   const auto idcgenlanes = static_cast<unsigned int>(config.options().get<int>("idc-gen-lanes"));
   const auto idcgentimelanes = static_cast<unsigned int>(config.options().get<int>("idc-gen-time-lanes"));
+  const auto delay = static_cast<unsigned int>(config.options().get<bool>("delay"));
 
   const bool fft = config.options().get<bool>("use-naive-fft");
   const bool onlyIDCGen = config.options().get<bool>("only-idc-gen");
   const bool fastgen = config.options().get<bool>("fast-gen");
   const bool debugFT = config.options().get<bool>("debug");
+  const int dropTFsRandom = config.options().get<int>("dropTFsRandom");
+
   const unsigned int firstTF = 0;
   const unsigned int nLanes = 1;
   const bool loadFromFile = false;
+  const bool loadFromFileGen = config.options().get<bool>("load-from-file");
   gRandom->SetSeed(seed);
 
   WorkflowSpec workflow;
@@ -98,14 +116,19 @@ WorkflowSpec defineDataProcessing(ConfigContext const& config)
     }
     const auto last = std::min(tpcCRUs.end(), first + crusPerLane);
     const std::vector<uint32_t> rangeCRUs(first, last);
-    workflow.emplace_back(timePipeline(generateIDCsCRU(ilane, timeframes, rangeCRUs, fastgen), idcgentimelanes));
+    workflow.emplace_back(timePipeline(generateIDCsCRU(ilane, timeframes, rangeCRUs, fastgen, delay, loadFromFileGen, dropTFsRandom, rangeTFsDrop), idcgentimelanes));
   }
+
+  auto& hbfu = o2::raw::HBFUtils::Instance();
+  long startTime = hbfu.startTime > 0 ? hbfu.startTime : std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()).time_since_epoch().count();
+  o2::conf::ConfigurableParam::updateFromString(fmt::format("HBFUtils.startTime={}", startTime).data());
+  o2::raw::HBFUtilsInitializer hbfIni(config, workflow);
 
   if (onlyIDCGen == true) {
     return workflow;
   }
 
-  auto workflowTmp = WorkflowSpec{getTPCFLPIDCSpec<TPCFLPIDCDeviceNoGroup>(0, crus, iondrifttime, debugFT, false, false, "", true), getTPCFourierTransformEPNSpec(crus, iondrifttime, nFourierCoefficients, debugFT), getTPCDistributeIDCSpec(0, crus, timeframes, nLanes, firstTF, loadFromFile), ftAggregatorIDC(nFourierCoefficients, iondrifttime, timeframes, debugFT), receiveFourierCoeffEPN(timeframes, nFourierCoefficients), compare_EPN_AGG()};
+  auto workflowTmp = WorkflowSpec{getTPCFLPIDCSpec(0, crus, iondrifttime, debugFT, false, "", true, false), getTPCFourierTransformEPNSpec(crus, iondrifttime, nFourierCoefficients, debugFT), getTPCDistributeIDCSpec(0, crus, timeframes, nLanes, firstTF, loadFromFile), ftAggregatorIDC(nFourierCoefficients, iondrifttime, timeframes, debugFT), receiveFourierCoeffEPN(timeframes, nFourierCoefficients), compare_EPN_AGG()};
   for (auto& spec : workflowTmp) {
     workflow.emplace_back(spec);
   }
@@ -117,8 +140,26 @@ WorkflowSpec defineDataProcessing(ConfigContext const& config)
   return workflow;
 }
 
-DataProcessorSpec generateIDCsCRU(int lane, const unsigned int maxTFs, const std::vector<uint32_t>& crus, const bool fastgen)
+DataProcessorSpec generateIDCsCRU(int lane, const unsigned int maxTFs, const std::vector<uint32_t>& crus, const bool fastgen, const bool delay, const bool loadFromFile, const int dropTFsRandom, const std::vector<int>& rangeTFsDrop)
 {
+  using timer = std::chrono::high_resolution_clock;
+
+  std::array<std::vector<float>, CRU::MaxCRU> mIDCs{};
+  if (loadFromFile) {
+    TFile fInp("IDCGroup.root", "READ");
+    for (TObject* keyAsObj : *fInp.GetListOfKeys()) {
+      const auto key = dynamic_cast<TKey*>(keyAsObj);
+      LOGP(info, "Key name: {} Type: {}", key->GetName(), key->GetClassName());
+      std::vector<float>* idcData = (std::vector<float>*)fInp.Get(key->GetName());
+      std::string name = key->GetName();
+      const auto pos = name.find_last_of('_') + 1;
+      const int cru = std::stoi(name.substr(pos, name.length()));
+      mIDCs[cru] = *idcData;
+      LOGP(info, "Loaded {} IDCs from file for CRU {}", mIDCs[cru].size(), cru);
+      delete idcData;
+    }
+  }
+
   // generate random IDCs per CRU
   const int nOrbitsPerTF = 128; // number of orbits per TF
   const int nOrbitsPerIDC = 12; // integration interval in units of orbits per IDC
@@ -131,32 +172,83 @@ DataProcessorSpec generateIDCsCRU(int lane, const unsigned int maxTFs, const std
     outputSpecs.emplace_back(ConcreteDataMatcher{gDataOriginTPC, TPCIntegrateIDCDevice::getDataDescription(TPCIntegrateIDCDevice::IDCFormat::Sim), subSpec});
   }
 
+  gRandom->SetSeed(42);
   return DataProcessorSpec{
     fmt::format("idc-generator-{:02}", lane).data(),
     Inputs{},
     outputSpecs,
     AlgorithmSpec{
-      [maxTFs, fastgen, nIDCs, cruStart = crus.front(), cruEnde = crus.back()](ProcessingContext& ctx) {
+      [maxTFs, fastgen, nIDCs, delay, cruStart = crus.front(), cruEnde = crus.back(), mIDCs, dropTFsRandom, rangeTFsDrop](ProcessingContext& ctx) {
         const auto tf = ctx.services().get<o2::framework::TimingInfo>().tfCounter;
 
-        for (uint32_t icru = cruStart; icru <= cruEnde; ++icru) {
-          const o2::tpc::CRU cruTmp(icru);
-          const unsigned int nPads = o2::tpc::Mapper::PADSPERREGION[cruTmp.region()];
-          const unsigned int additionalInterval = (tf % 3) ? 1 : 0; // in each integration inerval are either 10 or 11 values when having 128 orbits per TF and 12 orbits integration length
-          const unsigned int nTotIDCs = (nIDCs + additionalInterval) * nPads;
+        if (!rangeTFsDrop.empty()) {
+          if (tf >= rangeTFsDrop.front() && tf <= rangeTFsDrop.back()) {
+            LOGP(info, "Dropping TF as specified from range: {}", tf);
+            return;
+          }
+        }
 
-          // generate random IDCs per CRU
-          if (!fastgen) {
+        if (dropTFsRandom && !gRandom->Integer(dropTFsRandom)) {
+          LOGP(info, "Dropping TF: {}", tf);
+          return;
+        }
+
+        auto start = timer::now();
+        const unsigned int additionalInterval = (tf % 3) ? 1 : 0; // in each integration inerval are either 10 or 11 values when having 128 orbits per TF and 12 orbits integration length
+        const unsigned int intervals = (nIDCs + additionalInterval);
+
+        std::vector<int> intervalsRand;
+        std::vector<float> normFac;
+        if (!mIDCs.front().empty()) {
+          const int nIntervalsMax = mIDCs[0].size() / o2::tpc::Mapper::PADSPERREGION[0];
+          const float globalScaling = gRandom->Gaus(1, 0.2);
+          for (int i = 0; i < intervals; ++i) {
+            intervalsRand.emplace_back(gRandom->Integer(nIntervalsMax));
+            normFac.emplace_back(globalScaling + gRandom->Gaus(1, 0.02));
+          }
+        }
+
+        for (uint32_t icru = cruStart; icru <= cruEnde; ++icru) {
+          o2::tpc::CRU cruTmp(icru);
+          const unsigned int nPads = o2::tpc::Mapper::PADSPERREGION[cruTmp.region()];
+          if (mIDCs.front().empty()) {
+            // generate random IDCs per CRU
+            const unsigned int nTotIDCs = intervals * nPads;
+            if (!fastgen) {
+              o2::pmr::vector<float> idcs;
+              idcs.reserve(nTotIDCs);
+              for (int i = 0; i < nTotIDCs; ++i) {
+                idcs.emplace_back(gRandom->Gaus(1000, 20));
+              }
+              ctx.outputs().adoptContainer(Output{gDataOriginTPC, TPCIntegrateIDCDevice::getDataDescription(TPCIntegrateIDCDevice::IDCFormat::Sim), o2::header::DataHeader::SubSpecificationType{icru << 7}, Lifetime::Timeframe}, std::move(idcs));
+            } else {
+              o2::pmr::vector<float> idcs(nTotIDCs, 1000.);
+              ctx.outputs().adoptContainer(Output{gDataOriginTPC, TPCIntegrateIDCDevice::getDataDescription(TPCIntegrateIDCDevice::IDCFormat::Sim), o2::header::DataHeader::SubSpecificationType{icru << 7}, Lifetime::Timeframe}, std::move(idcs));
+            }
+          } else {
+            const int cru = (icru + tf * 10) % 360;
             o2::pmr::vector<float> idcs;
-            idcs.reserve(nTotIDCs);
-            for (int i = 0; i < nTotIDCs; ++i) {
-              idcs.emplace_back(gRandom->Gaus(1000, 20));
+            idcs.reserve(mIDCs[cru].size());
+            const int nIntervals = intervalsRand.size();
+            for (int interval = 0; interval < nIntervals; ++interval) {
+              const int offset = intervalsRand[interval] * nPads;
+              for (int iPad = 0; iPad < nPads; ++iPad) {
+                idcs.emplace_back(mIDCs[cru][offset + iPad] / normFac[interval]);
+              }
             }
             ctx.outputs().adoptContainer(Output{gDataOriginTPC, TPCIntegrateIDCDevice::getDataDescription(TPCIntegrateIDCDevice::IDCFormat::Sim), o2::header::DataHeader::SubSpecificationType{icru << 7}, Lifetime::Timeframe}, std::move(idcs));
-          } else {
-            o2::pmr::vector<float> idcs(nTotIDCs, 1000.);
-            ctx.outputs().adoptContainer(Output{gDataOriginTPC, TPCIntegrateIDCDevice::getDataDescription(TPCIntegrateIDCDevice::IDCFormat::Sim), o2::header::DataHeader::SubSpecificationType{icru << 7}, Lifetime::Timeframe}, std::move(idcs));
           }
+        }
+
+        if (delay) {
+          auto stop = timer::now();
+          auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+          float totalTime = milliseconds.count();
+          const int sleepTime = (totalTime < intervals) ? (intervals - totalTime) : 0;
+          if (!(tf % 100)) {
+            LOGP(info, "time: {}  for {} intervals (ms): sleep for {} for TF: {}", totalTime, intervals, sleepTime, tf);
+          }
+          std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
         }
 
         if (tf >= (maxTFs - 1)) {

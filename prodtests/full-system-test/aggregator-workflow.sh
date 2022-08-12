@@ -13,7 +13,15 @@ source $O2DPG_ROOT/DATA/common/setenv_calib.sh
 if [[ -z $WORKFLOW_DETECTORS ]]; then echo "WORKFLOW_DETECTORS must be defined" 1>&2; exit 1; fi
 
 # CCDB destination for uploads
-[[ -z ${CCDB_POPULATOR_UPLOAD_PATH+x} ]] && CCDB_POPULATOR_UPLOAD_PATH="none"
+if [[ -z ${CCDB_POPULATOR_UPLOAD_PATH+x} ]]; then
+  if [[ $RUNTYPE == "SYNTHETIC" ]]; then
+    CCDB_POPULATOR_UPLOAD_PATH="http://ccdb-test.cern.ch:8080"
+  elif [[ $RUNTYPE == "PHYSICS" ]]; then
+    CCDB_POPULATOR_UPLOAD_PATH="http://ccdb-test.cern.ch:8080"
+  else
+    CCDB_POPULATOR_UPLOAD_PATH="none"
+  fi
+fi
 if [[ "0$GEN_TOPO_VERBOSE" == "01" ]]; then
   echo "CCDB_POPULATOR_UPLOAD_PATH = $CCDB_POPULATOR_UPLOAD_PATH" 1>&2
 fi
@@ -35,6 +43,8 @@ if [[ "0$GEN_TOPO_VERBOSE" == "01" ]]; then
   echo "CALIB_TPC_TIMEGAIN = $CALIB_TPC_TIMEGAIN" 1>&2
   echo "CALIB_TPC_RESPADGAIN = $CALIB_TPC_RESPADGAIN" 1>&2
   echo "CALIB_TPC_SCDCALIB = $CALIB_TPC_SCDCALIB" 1>&2
+  echo "CALIB_TPC_VDRIFTTGL = $CALIB_TPC_VDRIFTTGL" 1>&2
+  echo "CALIB_TPC_IDC = $CALIB_TPC_IDC" 1>&2
   echo "CALIB_CPV_GAIN = $CALIB_CPV_GAIN" 1>&2
 fi
 
@@ -82,6 +92,14 @@ if workflow_has_parameter CALIB_PROXIES; then
     if [[ ! -z $CALIBDATASPEC_BARREL_SPORADIC ]]; then
       add_W o2-dpl-raw-proxy "--dataspec \"$CALIBDATASPEC_BARREL_SPORADIC\" $(get_proxy_connection barrel_sp input)" "" 0
     fi
+  elif [[ $AGGREGATOR_TASKS == TPCIDC_A ]]; then
+    if [[ ! -z $CALIBDATASPEC_TPCIDC_A ]]; then
+      add_W o2-dpl-raw-proxy "--dataspec \"$CALIBDATASPEC_TPCIDC_A\" $(get_proxy_connection tpcidc_A input)" "" 0
+    fi
+  elif [[ $AGGREGATOR_TASKS == TPCIDC_C ]]; then
+    if [[ ! -z $CALIBDATASPEC_TPCIDC_C ]]; then
+      add_W o2-dpl-raw-proxy "--dataspec \"$CALIBDATASPEC_TPCIDC_C\" $(get_proxy_connection tpcidc_C input)" "" 0
+    fi
   elif [[ $AGGREGATOR_TASKS == CALO_TF ]]; then
     if [[ ! -z $CALIBDATASPEC_CALO_TF ]]; then
       add_W o2-dpl-raw-proxy "--dataspec \"$CALIBDATASPEC_CALO_TF\" $(get_proxy_connection calo_tf input)" "" 0
@@ -111,10 +129,10 @@ if [[ $AGGREGATOR_TASKS == BARREL_TF ]] || [[ $AGGREGATOR_TASKS == ALL ]]; then
   # TOF
   if [[ $CALIB_TOF_LHCPHASE == 1 ]] || [[ $CALIB_TOF_CHANNELOFFSETS == 1 ]]; then
     if [[ $CALIB_TOF_LHCPHASE == 1 ]]; then
-      add_W o2-calibration-tof-calib-workflow "--do-lhc-phase --tf-per-slot $LHCPHASE_TF_PER_SLOT --use-ccdb" "" 0
+      add_W o2-calibration-tof-calib-workflow "--do-lhc-phase --tf-per-slot $LHCPHASE_TF_PER_SLOT --use-ccdb --max-delay 0 " "" 0
     fi
     if [[ $CALIB_TOF_CHANNELOFFSETS == 1 ]]; then
-      add_W o2-calibration-tof-calib-workflow "--do-channel-offset --update-interval $TOF_CHANNELOFFSETS_UPDATE --delta-update-interval $TOF_CHANNELOFFSETS_DELTA_UPDATE --min-entries 100 --range 100000 --use-ccdb --follow-ccdb-updates" "" 0
+      add_W o2-calibration-tof-calib-workflow "--do-channel-offset --update-interval $TOF_CHANNELOFFSETS_UPDATE --delta-update-interval $TOF_CHANNELOFFSETS_DELTA_UPDATE --min-entries 100 --range 100000 --use-ccdb --condition-tf-per-query 2640 " "" 0
     fi
   fi
   if [[ $CALIB_TOF_DIAGNOSTICS == 1 ]]; then
@@ -128,6 +146,10 @@ if [[ $AGGREGATOR_TASKS == BARREL_TF ]] || [[ $AGGREGATOR_TASKS == ALL ]]; then
     # TODO: the residual aggregator should have --output-dir and --meta-output-dir defined
     # without that the residuals will be stored in the local working directory (and deleted after a week)
     add_W o2-calibration-residual-aggregator "$ENABLE_TRACK_INPUT --output-type trackParams,unbinnedResid,binnedResid --autosave-interval $RESIDUAL_AGGREGATOR_AUTOSAVE"
+  fi
+  if [[ $CALIB_TPC_VDRIFTTGL == 1 ]]; then
+    # options available via ARGS_EXTRA_PROCESS_o2_tpc_vdrift_tgl_calibration_workflow="--nbins-tgl 20 --nbins-dtgl 50 --max-tgl-its 2. --max-dtgl-itstpc 0.15 --min-entries-per-slot 1000 --time-slot-seconds 600 <--vdtgl-histos-file-name name> "
+    add_W o2-tpc-vdrift-tgl-calibration-workflow ""
   fi
   # TRD
   if [[ $CALIB_TRD_VDRIFTEXB == 1 ]]; then
@@ -143,9 +165,24 @@ if [[ $AGGREGATOR_TASKS == BARREL_SPORADIC ]] || [[ $AGGREGATOR_TASKS == ALL ]];
   fi
 fi
 
+# TPC IDCs
+firstCRU=0
+lastCRU=179
+crus="$firstCRU-$lastCRU"
+lanes=1
+lanesDistribute=1
+lanesFactorize=6
+nTFs=500
+
+if ! workflow_has_parameter CALIB_LOCAL_INTEGRATED_AGGREGATOR && [[ $CALIB_TPC_IDC == 1 ]] && [[ $AGGREGATOR_TASKS == TPCIDC_A || $AGGREGATOR_TASKS == TPCIDC_C || $AGGREGATOR_TASKS == ALL ]]; then
+  add_W o2-tpc-idc-distribute "--crus ${crus} --timeframes ${nTFs} --firstTF -100 true --lanes ${lanesDistribute} --output-lanes ${lanesFactorize} --nFactorTFs 100"
+  add_W o2-tpc-idc-factorize "--lanesDistribute ${lanesDistribute} --input-lanes ${lanesFactorize} --crus ${crus} --timeframes ${nTFs} --configFile '' --compression 2 --nthreads-grouping 8 --nthreads-IDC-factorization 8 --groupPads \"5,6,7,8,4,5,6,8,10,13\" --groupRows \"2,2,2,3,3,3,2,2,2,2\" --sendOutputFFT true --nTFsMessage 500 --enable-CCDB-output true --enablePadStatusMap" "TPCIDCGroupParam.groupPadsSectorEdges=32211"
+  add_W o2-tpc-idc-ft-aggregator "--rangeIDC 200 --inputLanes ${lanesFactorize} --nFourierCoeff 40 --timeframes ${nTFs} --nthreads 8"
+fi
+
 # Calo cal
 # calibrations for AGGREGATOR_TASKS == CALO_TF
-if [[ $AGGREGATOR_TASKS == CALO_TF ]] || [[ $AGGREGATOR_TASKS == ALL ]]; then
+if [[ $AGGREGATOR_TASKS == CALO_TF || $AGGREGATOR_TASKS == ALL ]]; then
   # EMC
   if [[ $CALIB_EMC_CHANNELCALIB == 1 ]]; then
     add_W o2-calibration-emcal-channel-calib-workflow "" "EMCALCalibParams.calibType=\"time\""
@@ -188,7 +225,7 @@ if [[ "0$GEN_TOPO_VERBOSE" == "01" ]]; then
   fi
 fi
 
-if [[ $CCDB_POPULATOR_UPLOAD_PATH != "none" ]]; then add_W o2-calibration-ccdb-populator-workflow "--ccdb-path $CCDB_POPULATOR_UPLOAD_PATH"; fi
+if [[ $CCDB_POPULATOR_UPLOAD_PATH != "none" ]] && [[ ! -z $WORKFLOW ]]; then add_W o2-calibration-ccdb-populator-workflow "--ccdb-path $CCDB_POPULATOR_UPLOAD_PATH"; fi
 
 if ! workflow_has_parameter CALIB_LOCAL_INTEGRATED_AGGREGATOR; then
   WORKFLOW+="o2-dpl-run $ARGS_ALL $GLOBALDPLOPT"

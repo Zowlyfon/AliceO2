@@ -72,6 +72,11 @@ void PrimaryVertexingSpec::init(InitContext& ic)
   mTimer.Reset();
   o2::base::GRPGeomHelper::instance().setRequest(mGGCCDBRequest);
   mVertexer.setValidateWithIR(mValidateWithIR);
+  auto dumpDir = ic.options().get<std::string>("pool-dumps-directory");
+  if (!(dumpDir.empty() || dumpDir == "/dev/null") && !o2::utils::Str::pathIsDirectory(dumpDir)) {
+    throw std::runtime_error(fmt::format("directory {} for raw data dumps does not exist", dumpDir));
+  }
+  mVertexer.setPoolDumpDirectory(dumpDir);
 }
 
 void PrimaryVertexingSpec::run(ProcessingContext& pc)
@@ -141,8 +146,11 @@ void PrimaryVertexingSpec::run(ProcessingContext& pc)
   }
 
   mTimer.Stop();
-  LOG(info) << "Found " << vertices.size() << " primary vertices, timing: CPU: "
-            << mTimer.CpuTime() - timeCPU0 << " Real: " << mTimer.RealTime() - timeReal0 << " s";
+  LOGP(info, "Found {} PVs, Time CPU/Real:{:.3f}/{:.3f} (DBScan: {:.4f}, Finder:{:.4f}, Rej.Debris:{:.4f}, Reattach:{:.4f}) | {} trials for {} TZ-clusters, max.trials: {}, Slowest TZ-cluster: {} ms of mult {}",
+       vertices.size(), mTimer.CpuTime() - timeCPU0, mTimer.RealTime() - timeReal0,
+       mVertexer.getTimeDBScan().CpuTime(), mVertexer.getTimeVertexing().CpuTime(), mVertexer.getTimeDebris().CpuTime(), mVertexer.getTimeReAttach().CpuTime(),
+       mVertexer.getTotTrials(), mVertexer.getNTZClusters(), mVertexer.getMaxTrialsPerCluster(),
+       mVertexer.getLongestClusterTimeMS(), mVertexer.getLongestClusterMult());
 }
 
 void PrimaryVertexingSpec::endOfStream(EndOfStreamContext& ec)
@@ -180,9 +188,12 @@ void PrimaryVertexingSpec::updateTimeDependentParams(ProcessingContext& pc)
     } else {
       mITSROFrameLengthMUS = alpParams.roFrameLengthInBC * o2::constants::lhc::LHCBunchSpacingNS * 1e-3; // ITS ROFrame duration in \mus
     }
-    mVertexer.setBunchFilling(o2::base::GRPGeomHelper::instance().getGRPLHCIF()->getBunchFilling());
+    if (o2::base::GRPGeomHelper::instance().getGRPECS()->getRunType() != o2::parameters::GRPECSObject::RunType::COSMICS) {
+      mVertexer.setBunchFilling(o2::base::GRPGeomHelper::instance().getGRPLHCIF()->getBunchFilling());
+    }
     mVertexer.setITSROFrameLength(mITSROFrameLengthMUS);
     mVertexer.init();
+    PVertexerParams::Instance().printKeyValues();
   }
   // we may have other params which need to be queried regularly
 }
@@ -219,7 +230,7 @@ DataProcessorSpec getPrimaryVertexingSpec(GTrackID::mask_t src, bool skip, bool 
     dataRequest->inputs,
     outputs,
     AlgorithmSpec{adaptFromTask<PrimaryVertexingSpec>(dataRequest, ggRequest, skip, validateWithFT0, useMC)},
-    Options{{"material-lut-path", VariantType::String, "", {"Path of the material LUT file"}}}};
+    Options{{"pool-dumps-directory", VariantType::String, "", {"Destination directory for the tracks pool dumps"}}}};
 }
 
 } // namespace vertexing

@@ -51,18 +51,50 @@ void SpyServiceHelpers::processData(DeviceInfo& info, std::smatch& match)
   }
 }
 
+struct GUIData {
+  const o2::header::DataHeader* header;
+  std::vector<char*> dataParts;
+  std::vector<size_t> dataLength;
+};
+
 void SpyServiceHelpers::webGUI(uv_timer_s* ctx, GuiRenderer* renderer) {
   auto registry = renderer->handler->mServerContext->registry;
-  auto spyGuiData = registry->get<SpyService>().spyGuiData;
+  auto parts = registry->get<SpyService>().parts;
+
+  static std::vector<GUIData> guiData;
+
+  int i = 0;
+
+
+
+  while (i < parts->Size()) {
+    std::string headerString((char*)(*parts)[i].GetData(), (*parts)[i].GetSize());
+
+    GUIData guiDataPacket;
+
+    auto header = o2::header::get<o2::header::DataHeader*>(headerString.c_str());
+    guiDataPacket.header = header;
+
+    int payloadParts = (int)header->splitPayloadParts;
+
+    int lastPart = i + payloadParts;
+
+    while (i < lastPart) {
+      i++;
+      guiDataPacket.dataParts.push_back((char*)(*parts)[i].GetData());
+      guiDataPacket.dataLength.push_back((*parts)[i].GetSize());
+    }
+
+    guiData.push_back(guiDataPacket);
+
+    i++;
+  }
+
   int selectedFrame = registry->get<SpyService>().selectedFrame;
   int selectedData = registry->get<SpyService>().selectedData;
+  const o2::header::DataHeader* header;
 
-  auto headerString = spyGuiData[selectedFrame].header;
-  auto data = spyGuiData[selectedFrame].data[selectedData];
-
-  auto header = o2::header::get<o2::header::DataHeader*>(headerString.c_str());
-
-  auto selectedHeader = registry->get<SpyService>().selectedHeader;
+  header = guiData.size() ? guiData[selectedFrame].header : nullptr;
 
   if (header != nullptr) {
     ImGui::Begin(fmt::format("Spy {}", header->dataDescription.str).c_str());
@@ -72,35 +104,16 @@ void SpyServiceHelpers::webGUI(uv_timer_s* ctx, GuiRenderer* renderer) {
       uv_stop(ctx->loop);
     }
 
-    const char* items[] = { "AAAA", "BBBB", "CCCC", "DDDD", "EEEE", "FFFF", "GGGG", "HHHH", "IIII", "JJJJ", "KKKK", "LLLLLLL", "MMMM", "OOOOOOO" };
-    static int item_current_idx = 0; // Here we store our selection data as an index.
-    const char* combo_preview_value = items[item_current_idx];  // Pass in the preview value visible before opening the combo (it could be anything)
-    if (ImGui::BeginCombo("combo 1", combo_preview_value))
-    {
-      for (int n = 0; n < IM_ARRAYSIZE(items); n++)
-      {
-        const bool is_selected = (item_current_idx == n);
-        if (ImGui::Selectable(items[n], is_selected))
-          item_current_idx = n;
-
-        // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-        if (is_selected)
-          ImGui::SetItemDefaultFocus();
-      }
-      ImGui::EndCombo();
-    }
-
     static int selectedHeaderIndex = 0;
 
-    if (ImGui::BeginCombo("Header", selectedHeader.c_str())) {
+    if (ImGui::BeginCombo("Header", std::to_string(header->sMagicString).c_str())) {
       int i = 0;
-      for (const auto d : spyGuiData) {
-        auto h = o2::header::get<o2::header::DataHeader*>(d.header.c_str());
+      for (const auto d : guiData) {
+        auto h = o2::header::get<o2::header::DataHeader*>(d.header);
         std::string value = std::to_string(h->sMagicString + i);
         //bool isSelected = selectedFrame == i;
         bool isSelected = selectedHeaderIndex == i;
         if (ImGui::Selectable(value.c_str(), isSelected)) {
-          registry->get<SpyService>().selectedHeader = value;
           registry->get<SpyService>().selectedFrame = i;
           selectedHeaderIndex = i;
         }
@@ -132,24 +145,27 @@ void SpyServiceHelpers::webGUI(uv_timer_s* ctx, GuiRenderer* renderer) {
       ImGui::Columns(1);
     }
 
+    auto data = guiData[selectedFrame].dataParts[selectedData];
+    auto size = guiData[selectedFrame].dataLength[selectedData];
+
     if (ImGui::CollapsingHeader("Payload", ImGuiTreeNodeFlags_DefaultOpen)) {
       ImGui::BeginChild("##ScrollingRegion", ImVec2(0, 430), false, ImGuiWindowFlags_HorizontalScrollbar);
 
-      if (data != nullptr && !data.empty() && ImGui::BeginTable("Data", 5, ImGuiTableFlags_Borders)) {
+      if (data != nullptr && size > 0 && ImGui::BeginTable("Data", 5, ImGuiTableFlags_Borders)) {
         ImGui::TableSetupColumn("");
         ImGui::TableSetupColumn("#0");
         ImGui::TableSetupColumn("#1");
         ImGui::TableSetupColumn("#2");
         ImGui::TableSetupColumn("#3");
         ImGui::TableHeadersRow();
-        for (int row = 0; row < data.length() / 4; row++) {
+        for (int row = 0; row < size / 4; row++) {
           ImGui::TableNextRow();
           ImGui::TableSetColumnIndex(0);
           ImGui::Text("%04d", row * 4);
 
           for (int column = 1; column < 5; column++) {
             std::stringstream hex;
-            if (data.length() > row * 4) {
+            if (size > row * 4) {
               ImGui::TableSetColumnIndex(column);
               unsigned char dataElem = data[row * 4 + (column - 1)];
               hex << std::hex << (int)dataElem;

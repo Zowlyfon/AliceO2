@@ -51,6 +51,10 @@ namespace o2
 namespace its
 {
 
+lightVertex::lightVertex(float x, float y, float z, std::array<float, 6> rms2, int cont, float avgdis2, int stamp) : mX{x}, mY{y}, mZ{z}, mRMS2{rms2}, mAvgDistance2{avgdis2}, mContributors{cont}, mTimeStamp{stamp}
+{
+}
+
 constexpr float DefClusErrorRow = o2::itsmft::SegmentationAlpide::PitchRow * 0.5;
 constexpr float DefClusErrorCol = o2::itsmft::SegmentationAlpide::PitchCol * 0.5;
 constexpr float DefClusError2Row = DefClusErrorRow * DefClusErrorRow;
@@ -91,6 +95,16 @@ void TimeFrame::addPrimaryVertices(const gsl::span<const Vertex>& vertices)
     mBeamPosWeight += w;
   }
   mROframesPV.push_back(mPrimaryVertices.size());
+}
+
+void TimeFrame::addPrimaryVertices(const std::vector<lightVertex>& lVertices)
+{
+  std::vector<Vertex> vertices;
+  for (auto& vertex : lVertices) {
+    vertices.emplace_back(o2::math_utils::Point3D<float>(vertex.mX, vertex.mY, vertex.mZ), vertex.mRMS2, vertex.mContributors, vertex.mAvgDistance2);
+    vertices.back().setTimeStamp(vertex.mTimeStamp);
+  }
+  addPrimaryVertices(vertices);
 }
 
 int TimeFrame::loadROFrameData(const o2::itsmft::ROFRecord& rof, gsl::span<const itsmft::Cluster> clusters,
@@ -202,13 +216,16 @@ int TimeFrame::getTotalClusters() const
   return int(totalClusters);
 }
 
-void TimeFrame::initialise(const int iteration, const MemoryParameters& memParam, const TrackingParameters& trkParam, const int maxLayers)
+void TimeFrame::initialise(const int iteration, const TrackingParameters& trkParam, const int maxLayers)
 {
   if (iteration == 0) {
     mTracks.clear();
     mTracksLabel.clear();
+    mLinesLabels.clear();
+    mVerticesLabels.clear();
     mTracks.resize(mNrof);
     mTracksLabel.resize(mNrof);
+    mLinesLabels.resize(mNrof);
     mCells.resize(trkParam.CellsPerRoad());
     mCellsLookupTable.resize(trkParam.CellsPerRoad() - 1);
     mCellsNeighbours.resize(trkParam.CellsPerRoad() - 1);
@@ -216,7 +233,6 @@ void TimeFrame::initialise(const int iteration, const MemoryParameters& memParam
     mTracklets.resize(std::min(trkParam.TrackletsPerRoad(), maxLayers - 1));
     mTrackletLabels.resize(trkParam.TrackletsPerRoad());
     mTrackletsLookupTable.resize(trkParam.CellsPerRoad());
-    mIndexTables.clear();
     mIndexTableUtils.setTrackingParameters(trkParam);
     mPositionResolution.resize(trkParam.NLayers);
     mBogusClusters.resize(trkParam.NLayers, 0);
@@ -354,6 +370,17 @@ unsigned long TimeFrame::getArtefactsMemory()
     }
   }
   return size + sizeof(Road) * mRoads.size();
+}
+
+void TimeFrame::fillPrimaryVerticesXandAlpha()
+{
+  if (mPValphaX.size()) {
+    mPValphaX.clear();
+  }
+  mPValphaX.reserve(mPrimaryVertices.size());
+  for (auto& pv : mPrimaryVertices) {
+    mPValphaX.emplace_back(std::array<float, 2>{std::hypot(pv.getX(), pv.getY()), math_utils::computePhi(pv.getX(), pv.getY())});
+  }
 }
 
 void TimeFrame::checkTrackletLUTs()
