@@ -17,7 +17,8 @@
 #include <vector>
 #include <fairmq/FwdDecls.h>
 
-namespace o2::framework {
+namespace o2::framework
+{
 struct ServiceRegistry;
 struct DeviceState;
 struct DriverClient;
@@ -51,7 +52,6 @@ class SpyService
   std::mutex mMutex;
 
 };
-}
-
+} // namespace o2::framework
 
 #endif // O2_SPYSERVICE_H

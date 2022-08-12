@@ -48,9 +48,7 @@ std::vector<SendingPolicy> SendingPolicy::createDefaultPolicies()
                 LOGP(info, "Downstream backpressure on {} recovered.", channel->GetName());
               } else if (res == (size_t) fair::mq::TransferCode::error) {
                 LOGP(fatal, "Error while sending on channel {}", channel->GetName());
-              }
-            }
-          },
+              } }},
           SendingPolicy{
             .name = "default",
             .matcher = [](DeviceSpec const&, ConfigContext const&) { return true; },

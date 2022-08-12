@@ -19,8 +19,8 @@
 #include <string>
 #include <string_view>
 
-
-namespace o2::framework {
+namespace o2::framework
+{
 SpyService::SpyService(ServiceRegistry& registry, DeviceState& deviceState)
   : mRegistry{registry},
     mDeviceState{deviceState},

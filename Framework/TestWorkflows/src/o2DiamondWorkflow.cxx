@@ -102,8 +102,9 @@ WorkflowSpec defineDataProcessing(ConfigContext const& specs)
         static int foo = 0;
         aData[0] = foo++;
       })},
-    .options = {ConfigParamSpec{"some-device-param", VariantType::Int, 1, {"Some device parameter"}},
-                }};
+    .options = {
+      ConfigParamSpec{"some-device-param", VariantType::Int, 1, {"Some device parameter"}},
+    }};
   DataProcessorSpec b{
     .name = "B",
     .inputs = {InputSpec{"x", "TST", "A1", Lifetime::Timeframe, {ConfigParamSpec{"somestring", VariantType::String, "", {"Some input param"}}}}},
@@ -114,7 +115,7 @@ WorkflowSpec defineDataProcessing(ConfigContext const& specs)
                                  InputSpec{"x2", "TST", "A3"}},
                       .outputs = {OutputSpec{{"c1"}, "TST", "C1"},
                                   OutputSpec{{"c2"}, "TST", "C2"}},
-                      .algorithm = simplePipe("c1", "c2",2000)};
+                      .algorithm = simplePipe("c1", "c2", 2000)};
   DataProcessorSpec d{.name = "D",
                       .inputs = {InputSpec{"a", "TST", "A1"},
                                  InputSpec{"b", "TST", "B1"},

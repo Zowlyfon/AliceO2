@@ -16,14 +16,15 @@
 #include <string>
 #include <regex>
 
-namespace o2::header {
-  class DataHeader;
+namespace o2::header
+{
+class DataHeader;
 }
 
 namespace o2::framework
 {
-  class GuiRenderer;
-  class HeaderType;
+class GuiRenderer;
+class HeaderType;
 class SpyServiceHelpers
 {
  public:
@@ -33,6 +34,6 @@ class SpyServiceHelpers
   static void processData(DeviceInfo& info, std::smatch& match);
   static void webGUI(uv_timer_s* ctx, GuiRenderer* renderer);
 };
-}
+} // namespace o2::framework
 
 #endif // O2_FRAMEWORK_SPYSERVICEHELPERS_H

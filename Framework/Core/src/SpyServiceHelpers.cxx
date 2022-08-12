@@ -21,8 +21,8 @@
 #include "DPLWebSocket.h"
 #include "Headers/DataHeader.h"
 
-
-namespace o2::framework {
+namespace o2::framework
+{
 
 bool SpyServiceHelpers::parseHeader(const std::string& header, std::smatch& match)
 {
@@ -57,15 +57,14 @@ struct GUIData {
   std::vector<size_t> dataLength;
 };
 
-void SpyServiceHelpers::webGUI(uv_timer_s* ctx, GuiRenderer* renderer) {
+void SpyServiceHelpers::webGUI(uv_timer_s* ctx, GuiRenderer* renderer)
+{
   auto registry = renderer->handler->mServerContext->registry;
   auto parts = registry->get<SpyService>().parts;
 
   static std::vector<GUIData> guiData;
 
   int i = 0;
-
-
 
   while (i < parts->Size()) {
     std::string headerString((char*)(*parts)[i].GetData(), (*parts)[i].GetSize());

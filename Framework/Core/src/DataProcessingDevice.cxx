@@ -1036,7 +1036,6 @@ void DataProcessingDevice::Run()
       AsyncQueueHelpers::run(queue, {oldestPossibleTimeslice.timeslice.value});
       uv_run(mState.loop, shouldNotWait ? UV_RUN_NOWAIT : UV_RUN_ONCE);
 
-
       GuiRenderer* renderer = mServiceRegistry.get<SpyService>().renderer;
 
       if (uv_now(mState.loop) > renderer->enableAfter && renderer->guiConnected) {
