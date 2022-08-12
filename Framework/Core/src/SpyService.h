@@ -22,11 +22,6 @@ struct ServiceRegistry;
 struct DeviceState;
 struct DriverClient;
 
-struct SpyGuiData {
-  std::string header;
-  std::vector<std::string> data;
-};
-
 struct GuiRenderer;
 
 class SpyService
@@ -40,12 +35,13 @@ class SpyService
   /// Send data;
   void sendData(std::string data, int num);
 
-  std::vector<SpyGuiData> spyGuiData;
   GuiRenderer* renderer;
   int selectedFrame = 0;
   int selectedData = 0;
   int debugCurrentItemIndex = 0;
-  std::string selectedHeader = "";
+
+  fair::mq::Parts* parts;
+
 
  private:
   bool mOnce = false;

@@ -37,6 +37,9 @@ std::vector<SendingPolicy> SendingPolicy::createDefaultPolicies()
             .matcher = [](DeviceSpec const&, ConfigContext const&) { return true; },
             .send = [](FairMQDeviceProxy& proxy, fair::mq::Parts& parts, ChannelIndex channelIndex, ServiceRegistry& registry) {
 
+              registry.get<SpyService>().parts = &parts;
+
+              /*
               int i = 0;
 
               while (i < parts.Size()) {
@@ -63,6 +66,7 @@ std::vector<SendingPolicy> SendingPolicy::createDefaultPolicies()
 
                 i++;
               }
+              */
 
 
 
