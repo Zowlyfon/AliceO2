@@ -1374,7 +1374,6 @@ int runStateMachine(DataProcessorSpecs const& workflow,
   serverHandle.data = &serverContext;
   uv_tcp_init(loop, &serverHandle);
 
-
   driverInfo.port = 8080 + (getpid() % 30000);
 
   if (getenv("DPL_DRIVER_REMOTE_GUI_PORT")) {
